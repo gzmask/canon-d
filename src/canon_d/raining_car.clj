@@ -37,22 +37,39 @@
 
 (sth/overpad (o/note :A3))
 
-(def a-buffer (o/buffer (* 2 (o/server-sample-rate))))
+(def a-buffer (o/buffer (* 5 (o/server-sample-rate))))
 (o/free-sample a-buffer)
-(def a-recorder
-  (o/record-buf:ar (o/sound-in) a-buffer))
 (o/definst go-recorder [freq 440 attack 0.01 sustain 0.4 release 0.1 vol 0.4]
-  (* 10 vol a-recorder))
+  (let [aud-in (o/sound-in)
+        aud-in (o/record-buf:ar aud-in a-buffer)
+        aud-out (* 10 vol aud-in)]
+    (o/pan2:ar aud-out)))
+(o/inst-fx! go-recorder o/fx-reverb)
+(o/clear-fx go-recorder)
 (go-recorder)
 (o/stop)
+
 (o/definst go-buffer [freq 440 attack 0.01 sustain 0.4 release 0.1 vol 1]
-  [(* 4 vol (o/play-buf:ar 1 a-buffer))
-   (* 4 vol (o/play-buf:ar 1 a-buffer))])
+  (o/pan2 (* 10 vol (o/play-buf:ar 1 a-buffer))))
+(o/inst-fx! go-buffer o/fx-reverb)
+(o/clear-fx go-buffer)
 (go-buffer)
 (o/buffer-info a-buffer)
 (o/buffer-save a-buffer "123.wav")
 (meta #'o/play-buf)
 (meta #'o/record-buf)
+
+
+(o/defsynth pitch-controlled-saws
+  [out-bus 0]
+  (let [p   (o/pitch (o/sound-in))
+        p   (/ p 4)
+        p   (o/lag p 1)
+        s   (o/saw (first p))
+        s   (o/record-buf:ar (* 0.4 s) a-buffer)]
+    (o/out out-bus (o/pan2 s))))
+(pitch-controlled-saws)
+(o/stop)
 
 (def m (o/metronome 128))
 
