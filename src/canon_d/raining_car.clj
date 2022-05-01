@@ -84,8 +84,10 @@
    (map
     (fn [note t]
       (at/at (m (+ t b)) #(sth/overpad note :amp (rand-nth [0 0.1 0.2])) my-pool))
-    (shuffle (o/scale :a3 :minor))
-    (range 0 8 (rand-nth [1 0.5 0.25])))))
+    (rand-nth [(shuffle (o/scale :a3 :minor))
+               (conj (shuffle (o/scale :a3 :minor))
+                     (rand-nth [64 69]))])
+    (range 0 9 (rand-nth [1 0.5 0.25])))))
 (base-line (m))
 
 (defn player [b]
@@ -102,5 +104,4 @@
 (o/stop)
 (at/scheduled-jobs my-pool)
 (at/stop-and-reset-pool! my-pool :strategy :kill)
-(at/stop-and-reset-pool! my-pool)
 
