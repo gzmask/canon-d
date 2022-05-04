@@ -28,8 +28,8 @@
 
 (comment
   (def d (dubstep))
-  (o/ctl d :wobble 6)
-  (o/ctl d :freq (o/midi->hz (o/note :a4)))
+  (o/ctl d :wobble 2)
+  (o/ctl d :freq (o/midi->hz (o/note :d4)))
   (o/ctl d :bpm 120)
   (o/stop)
   )
@@ -94,7 +94,7 @@
   (doall
    (map (fn [n b]
           (at (m b) (sth/overpad (o/note n)))
-          (at (m (+ 1 b)) (sth/overpad (o/note n)))
+          (at (m (+ 1 b)) (sth/overpad (o/note n) :amp 1.0))
           (at (m (+ 2 b)) (sth/overpad (o/note n)))
           (at (m (+ 3 b)) (sth/overpad (o/note n))))
         [:d3 :d3 :g3]
@@ -117,7 +117,7 @@
   (doall 
    (map
     #(if (zero? (mod % 4))
-       (at (m (+ % b)) (d/quick-kick :amp 0.8))
+       (at (m (+ % b)) (d/quick-kick :amp 1.0))
        (at (m (+ % b)) (d/hat3 :amp 0.8)))
     (range 24))))
 
@@ -136,3 +136,23 @@
   (at (m (+ 24 b)) (#'intro (+ 24 b))))
 (intro (m))
 (at/stop-and-reset-pool! beat-pool :strategy :kill)
+
+(defn go-guitar [buffer-length-seconds]
+  (let [in-buffer (o/buffer (* buffer-length-seconds
+                               (o/server-sample-rate))
+                            2)]
+    (o/definst guitar-solo [vol 0.5]
+      (let [guitar-in (o/sound-in [0 1])
+            guitar-out (o/record-buf:ar guitar-in in-buffer)]
+        (* 10 vol guitar-out)))
+    (at (m (+ 8 (m))) (guitar-solo))
+    in-buffer))
+(def c-buffer (go-guitar 24))
+(o/stop)
+(o/free-sample c-buffer)
+
+(defn play-guitar [out-buffer]
+  (o/definst go-buffer [vol 1]
+    (* 10 vol (o/play-buf:ar 2 out-buffer)))
+  (go-buffer))
+(play-guitar c-buffer)
