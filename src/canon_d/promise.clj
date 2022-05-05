@@ -69,90 +69,104 @@
 
 (at (m (+ 2 (m))) (p/sampled-piano (o/note :d3)))
 (defn intro1 [b]
-  (at (m b) (p/sampled-piano (o/note :d4)))
-  (at (m (+ 1 b)) (p/sampled-piano (o/note :a3)))
-  (at (m (+ 2 b)) (p/sampled-piano (o/note :f4)))
-  (at (m (+ 3 b)) (p/sampled-piano (o/note :a3))))
+  (at (m b) (p/sampled-piano (o/note :a3) :level 0.5))
+  (at (m (+ 1 b)) (p/sampled-piano (o/note :d3) :level 0.5))
+  (at (m (+ 2 b)) (p/sampled-piano (o/note :f4) :level 0.5))
+  (at (m (+ 3 b)) (p/sampled-piano (o/note :a3) :level 0.5)))
 (intro1 (m))
 (defn intro2 [b]
-  (at (m (+ 0 b)) (p/sampled-piano (o/note :d3)))
-  (at (m (+ 1 b)) (p/sampled-piano (o/note :a3)))
-  (at (m (+ 2 b)) (p/sampled-piano (o/note :f3)))
-  (at (m (+ 3 b)) (p/sampled-piano (o/note :a#3))))
+  (at (m (+ 0 b)) (p/sampled-piano (o/note :a3) :level 0.5))
+  (at (m (+ 1 b)) (p/sampled-piano (o/note :d3) :level 0.5))
+  (at (m (+ 2 b)) (p/sampled-piano (o/note :f4) :level 0.5))
+  (at (m (+ 3 b)) (p/sampled-piano (o/note :a#3) :level 0.5)))
 (intro2 (m))
 (defn intro3 [b]
-  (at (m (+ 0 b)) (p/sampled-piano (o/note :g3)))
-  (at (m (+ 1 b)) (p/sampled-piano (o/note :a#4)))
-  (at (m (+ 2 b)) (p/sampled-piano (o/note :f4)))
-  (at (m (+ 3 b)) (p/sampled-piano (o/note :a#3))))
+  (at (m (+ 0 b)) (p/sampled-piano (o/note :g3) :level 0.5))
+  (at (m (+ 1 b)) (p/sampled-piano (o/note :a#3) :level 0.5))
+  (at (m (+ 2 b)) (p/sampled-piano (o/note :f4) :level 0.5))
+  (at (m (+ 3 b)) (p/sampled-piano (o/note :a#3) :level 0.5)))
 (intro3 (m))
+(defn intro [b]
+  (intro1 b)
+  (intro1 (+ 8 b))
+  (intro2 (+ 16 b))
+  (intro3 (+ 24 b))
+  (at (m (+ 32 b)) (#'intro (+ 32 b))))
+(intro (m))
 
 (require '[overtone.inst.synth :as sth])
-(sth/overpad (o/note :d3))
+(sth/overpad (o/note :a3))
 (sth/overpad (o/note :g3))
-(defn base-line [b]
+(defn base-line-one [b]
   (doall
    (map (fn [n b]
           (at (m b) (sth/overpad (o/note n)))
-          (at (m (+ 1 b)) (sth/overpad (o/note n) :amp 1.0))
-          (at (m (+ 2 b)) (sth/overpad (o/note n)))
-          (at (m (+ 3 b)) (sth/overpad (o/note n))))
-        [:d3 :d3 :g3]
-        [b (+ b 8) (+ b 16)])))
+          (at (m (+ 1 b)) (sth/overpad (o/note n) :amp 1.1))
+          (at (m (+ 2 b)) (sth/overpad (o/note n) :amp 1.1))
+          (at (m (+ 3 b)) (sth/overpad (o/note n) :amp 1.1)))
+        [:d3 :e3 :g3]
+        [b (+ b 4) (+ b 8)])))
+(defn base-line [b]
+  (base-line-one b)
+  (at (m (+ b 12)) (#'base-line (+ b 12))))
 (base-line (m))
 
 (require '[overtone.inst.drum :as d])
 
-(d/kick)
-(d/dub-kick)
 (d/hat3)
 (d/clap)
 (d/noise-snare)
 (d/open-hat)
 (d/quick-kick)
+(d/dance-kick)
 (d/snare)
 (d/tom)
 
-(defn drums [b]
-  (doall 
-   (map
-    #(if (zero? (mod % 4))
-       (at (m (+ % b)) (d/quick-kick :amp 1.0))
-       (at (m (+ % b)) (d/hat3 :amp 0.8)))
-    (range 24))))
+(defn drums-pat [b]
+  (at (m (+ 0 b)) (d/hat3 :amp 1.0))
+  (at (m (+ 1 b)) (d/snare :amp 1.0))
+  (at (m (+ 2 b)) (d/snare :amp 1.0))
+  (at (m (+ 3 b)) (d/quick-kick :amp 1.0))
+  (at (m (+ 4 b)) (d/quick-kick :amp 0.8))
+  (at (m (+ 5 b)) (d/clap :amp 0.8))
+  (at (m (+ 5 b)) (d/snare :amp 0.8))
+  (at (m (+ 7 b)) (d/quick-kick :amp 0.8)))
 
+(defn drums [b]
+  (drums-pat b)
+  (at (m (+ b 8)) (#'drums (+ b 8))))
 (drums (m))
 
 
-(defn intro [b]
-  (drums b)
-  (base-line b)
-  (intro1 b)
-  (intro1 (+ 4 b))
-  (intro2 (+ 8 b))
-  (intro2 (+ 12 b))
-  (intro3 (+ 16 b))
-  (intro3 (+ 20 b))
-  (at (m (+ 24 b)) (#'intro (+ 24 b))))
-(intro (m))
-(at/stop-and-reset-pool! beat-pool :strategy :kill)
-
-(defn go-guitar [buffer-length-seconds]
-  (let [in-buffer (o/buffer (* buffer-length-seconds
+(defn rec-guitar [buffer-length-in-beats]
+  (let [buffer-length-seconds (/ (- (m buffer-length-in-beats)
+                                    (m 0))
+                                 1000)
+        in-buffer (o/buffer (* buffer-length-seconds
                                (o/server-sample-rate))
                             2)]
     (o/definst guitar-solo [vol 0.5]
       (let [guitar-in (o/sound-in [0 1])
             guitar-out (o/record-buf:ar guitar-in in-buffer)]
         (* 10 vol guitar-out)))
-    (at (m (+ 8 (m))) (guitar-solo))
+    (at (m) (guitar-solo))
+    (at (m (+ (m) buffer-length-in-beats)) (o/stop))
     in-buffer))
-(def c-buffer (go-guitar 24))
-(o/stop)
-(o/free-sample c-buffer)
 
 (defn play-guitar [out-buffer]
   (o/definst go-buffer [vol 1]
-    (* 10 vol (o/play-buf:ar 2 out-buffer)))
+    (* 100 vol (o/play-buf:ar 2 out-buffer)))
   (go-buffer))
-(play-guitar c-buffer)
+
+
+
+(o/stop)
+(o/free-sample g15-73-15-37-)
+(def g15-73-15-37- (rec-guitar 32))
+(play-guitar g15-73-15-37-)
+(def g77765-44543-77717-332 (rec-guitar 28))
+(play-guitar g77765-44543-77717-332)
+(def g3-21-123-4345- (rec-guitar 16))
+(play-guitar g3-21-123-4345-)
+
+(at/stop-and-reset-pool! beat-pool :strategy :kill)
