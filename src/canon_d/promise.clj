@@ -137,36 +137,44 @@
   (at (m (+ b 8)) (#'drums (+ b 8))))
 (drums (m))
 
-
-(defn rec-guitar [buffer-length-in-beats]
-  (let [buffer-length-seconds (/ (- (m buffer-length-in-beats)
-                                    (m 0))
-                                 1000)
-        in-buffer (o/buffer (* buffer-length-seconds
-                               (o/server-sample-rate))
-                            2)]
-    (o/definst guitar-solo [vol 0.5]
-      (let [guitar-in (o/sound-in [0 1])
-            guitar-out (o/record-buf:ar guitar-in in-buffer)]
-        (* 10 vol guitar-out)))
-    (at (m) (guitar-solo))
-    (at (m (+ (m) buffer-length-in-beats)) (o/stop))
-    in-buffer))
+(defn rec-guitar [reusable-long-buffer vol]
+  (let [p (o/definst guitar-rec [vol 0.5]
+            (let [guitar-in (o/sound-in [0 1])
+                  guitar-out (o/record-buf:ar guitar-in reusable-long-buffer)]
+              (* 10 vol guitar-out)))
+        start-time (o/now)
+        synth-id (p)]
+    (fn stop-recording []
+      (let [_ (o/kill synth-id)
+            stop-time (o/now)
+            buffer-length-ms (- stop-time start-time)
+            buffer-length-seconds (/ buffer-length-ms 1000)
+            out-buffer (o/buffer (* buffer-length-seconds
+                                    (o/server-sample-rate)) 2)
+            p (o/definst guitar-rec [vol 0.5]
+                (let [guitar-in (o/play-buf:ar 2 reusable-long-buffer)
+                      guitar-out (o/record-buf:ar guitar-in out-buffer)]
+                  (* 10 vol guitar-out)))
+            pid (p)]
+        (at (+ (o/now) buffer-length-ms) (o/kill pid))
+        out-buffer))))
 
 (defn play-guitar [out-buffer]
   (o/definst go-buffer [vol 1]
-    (* 100 vol (o/play-buf:ar 2 out-buffer)))
+    (* 10 vol (o/play-buf:ar 2 out-buffer)))
   (go-buffer))
 
-
+(def buffer-pool (o/buffer (* 30 (o/server-sample-rate)) 2))
+(def g15-73-15-37-stop-recod (rec-guitar buffer-pool 1.0))
+(def g15-73-15-37-buffer (g15-73-15-37-stop-recod))
+(play-guitar g15-73-15-37-buffer)
+(def g77765-44543-77717-332-stop-rec (rec-guitar buffer-pool 1.0))
+(def g77765-44543-77717-332-buffer (g77765-44543-77717-332-stop-rec))
+(play-guitar g77765-44543-77717-332-buffer)
+(def g3-21-123-4345-stop-rec (rec-guitar buffer-pool 1.0))
+(def g3-21-123-4345-buffer (g3-21-123-4345-stop-rec))
+(play-guitar g3-21-123-4345-buffer)
 
 (o/stop)
-(o/free-sample g15-73-15-37-)
-(def g15-73-15-37- (rec-guitar 32))
-(play-guitar g15-73-15-37-)
-(def g77765-44543-77717-332 (rec-guitar 28))
-(play-guitar g77765-44543-77717-332)
-(def g3-21-123-4345- (rec-guitar 16))
-(play-guitar g3-21-123-4345-)
-
+(o/free-all-loaded-samples)
 (at/stop-and-reset-pool! beat-pool :strategy :kill)
