@@ -29,13 +29,10 @@
 (comment
   (def d (dubstep))
   (o/ctl d :wobble 2)
-  (o/ctl d :freq (o/midi->hz (o/note :d4)))
+  (o/ctl d :freq (o/midi->hz (o/note :g3)))
   (o/ctl d :bpm 120)
   (o/stop)
   )
-
-(o/odoc o/in)
-(o/odoc o/sound-in)
 
 (require '[overtone.inst.sampled-piano :as p])
 
@@ -49,50 +46,81 @@
 (p/sampled-piano (o/note :d4))
 
 
-(map o/find-note-name (o/scale :d3 :minor))
-
 (def m (o/metronome 120))
-(- (m 2) (m 1))
-(doseq [note (map o/find-note-name (concat (o/scale :d3 :minor)
-                                           (rest (o/scale :d4 :minor))))]
-  (p/sampled-piano (o/note note))
-  (Thread/sleep 500))
 
 (require '[overtone.at-at :as at])
 
 (def beat-pool (at/mk-pool))
 
-(at/at (m) #(p/sampled-piano (o/note :d3)) beat-pool)
-
 (defmacro at [metronome play-fn]
   `(at/at ~metronome #(~play-fn) beat-pool))
 
 (at (m (+ 2 (m))) (p/sampled-piano (o/note :d3)))
+
 (defn intro1 [b]
-  (at (m b) (p/sampled-piano (o/note :a3) :level 0.5))
-  (at (m (+ 1 b)) (p/sampled-piano (o/note :d3) :level 0.5))
-  (at (m (+ 2 b)) (p/sampled-piano (o/note :f4) :level 0.5))
-  (at (m (+ 3 b)) (p/sampled-piano (o/note :a3) :level 0.5)))
+  (at (m b) (p/sampled-piano (o/note :a2) :level 0.5))
+  (at (m (+ 1 b)) (p/sampled-piano (o/note :d2) :level 0.5))
+  (at (m (+ 2 b)) (p/sampled-piano (o/note :f3) :level 0.5))
+  (at (m (+ 3 b)) (p/sampled-piano (o/note :a2) :level 0.5)))
 (intro1 (m))
 (defn intro2 [b]
-  (at (m (+ 0 b)) (p/sampled-piano (o/note :a3) :level 0.5))
-  (at (m (+ 1 b)) (p/sampled-piano (o/note :d3) :level 0.5))
-  (at (m (+ 2 b)) (p/sampled-piano (o/note :f4) :level 0.5))
-  (at (m (+ 3 b)) (p/sampled-piano (o/note :a#3) :level 0.5)))
+  (at (m (+ 0 b)) (p/sampled-piano (o/note :a2) :level 0.5))
+  (at (m (+ 1 b)) (p/sampled-piano (o/note :d2) :level 0.5))
+  (at (m (+ 2 b)) (p/sampled-piano (o/note :f3) :level 0.5))
+  (at (m (+ 3 b)) (p/sampled-piano (o/note :bb2) :level 0.5)))
 (intro2 (m))
 (defn intro3 [b]
+  (at (m (+ 0 b)) (p/sampled-piano (o/note :d2) :level 0.5))
+  (at (m (+ 1 b)) (p/sampled-piano (o/note :a3) :level 0.5))
+  (at (m (+ 2 b)) (p/sampled-piano (o/note :f3) :level 0.5))
+  (at (m (+ 3 b)) (p/sampled-piano (o/note :bb3) :level 0.5)))
+(intro3 (m))
+(defn intro4 [b]
   (at (m (+ 0 b)) (p/sampled-piano (o/note :g3) :level 0.5))
   (at (m (+ 1 b)) (p/sampled-piano (o/note :a#3) :level 0.5))
   (at (m (+ 2 b)) (p/sampled-piano (o/note :f4) :level 0.5))
   (at (m (+ 3 b)) (p/sampled-piano (o/note :a#3) :level 0.5)))
-(intro3 (m))
-(defn intro [b]
-  (intro1 b)
-  (intro1 (+ 8 b))
-  (intro2 (+ 16 b))
-  (intro3 (+ 24 b))
-  (at (m (+ 32 b)) (#'intro (+ 32 b))))
-(intro (m))
+(intro4 (m))
+
+;; OOP
+(defn play-f [s]
+  (let [b ((:m @s))]
+    ((:song-func @s) b)
+    (at ((:m @s) (+ (dec (:beat-length @s)) b))
+        (when (:loop? @s)
+          (play-f s)))))
+
+(defn intro-player [s msg & args]
+  (case msg
+    :play (if (seq args)
+            (swap! s assoc
+                   :song-func (first args)
+                   :beat-length (second args))
+            (play-f s))
+    :stop (swap! s assoc :loop? false)
+    :set-metronome (swap! s assoc :m (first args))
+    :set-loop? (swap! s assoc :loop? (first args))))
+
+(defn mk-intro-player [s]
+  (let [s (atom s)]
+    (fn intro-player [msg & args]
+      (apply #'intro-player s msg args))))
+
+(def p1 (mk-intro-player {:m m :loop? true :song-func intro1 :beat-length 4}))
+(p1 :play)
+(p1 :play intro1 4)
+(p1 :play intro2 4)
+(p1 :play intro3 4)
+(p1 :play intro4 4)
+(p1 :set-loop? false)
+(def p2 (mk-intro-player {:m m :loop? true :song-func intro2 :beat-length 4}))
+(p2 :play)
+(p2 :play intro1 4)
+(p2 :play intro2 4)
+(p2 :play intro3 4)
+(p2 :play intro4 4)
+(p2 :set-loop? false)
+
 
 (require '[overtone.inst.synth :as sth])
 (sth/overpad (o/note :a3))
