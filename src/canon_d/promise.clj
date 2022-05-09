@@ -15,6 +15,7 @@
        wob (* 0.8 (o/normalizer wob))
        wob (+ wob (o/bpf wob 1500 2))
        wob (+ wob (* 0.2 (o/g-verb wob 9 0.7 0.7)))
+       wob (* wob 0.2)
 
        kickenv (o/decay (o/t2a (o/demand (o/impulse:kr (/ bpm 30)) 0 (o/dseq [1 0 0 0 0 0 1 0 1 0 0 1 0 0 0 0] o/INF))) 0.7)
        kick (* (* kickenv 7) (o/sin-osc (+ 40 (* kickenv kickenv kickenv 200))))
@@ -29,8 +30,10 @@
 (comment
   (def d (dubstep))
   (o/ctl d :wobble 2)
-  (o/ctl d :freq (o/midi->hz (o/note :g3)))
+  (o/ctl d :freq (o/midi->hz (o/note :bb2)))
   (o/ctl d :bpm 120)
+  (o/ctl d :snare-vol 0.2)
+  (o/ctl d :kick-vol 0.2)
   (o/stop)
   )
 
@@ -82,11 +85,18 @@
   (at (m (+ 3 b)) (p/sampled-piano (o/note :a#3) :level 0.5)))
 (intro4 (m))
 
+(defn intro [b]
+  (intro1 b)
+  (intro2 (+ 4 b))
+  (intro3 (+ 8 b))
+  (intro4 (+ 12 b)))
+(intro (m))
+
 ;; OOP
 (defn play-f [s]
-  (let [b ((:m @s))]
+  (let [b (m)]
     ((:song-func @s) b)
-    (at ((:m @s) (+ (dec (:beat-length @s)) b))
+    (at (m (+ (dec (:beat-length @s)) b))
         (when (:loop? @s)
           (play-f s)))))
 
@@ -98,29 +108,29 @@
                    :beat-length (second args))
             (play-f s))
     :stop (swap! s assoc :loop? false)
-    :set-metronome (swap! s assoc :m (first args))
-    :set-loop? (swap! s assoc :loop? (first args))))
+    :loop? (swap! s assoc :loop? true)))
 
 (defn mk-intro-player [s]
   (let [s (atom s)]
     (fn intro-player [msg & args]
       (apply #'intro-player s msg args))))
 
-(def p1 (mk-intro-player {:m m :loop? true :song-func intro1 :beat-length 4}))
+(def p1 (mk-intro-player {:loop? true :song-func intro :beat-length 16}))
 (p1 :play)
-(p1 :play intro1 4)
-(p1 :play intro2 4)
-(p1 :play intro3 4)
-(p1 :play intro4 4)
-(p1 :set-loop? false)
-(def p2 (mk-intro-player {:m m :loop? true :song-func intro2 :beat-length 4}))
+(p1 :play intro1 8)
+(p1 :play intro2 8)
+(p1 :play intro3 8)
+(p1 :play intro4 8)
+(p1 :loop?)
+(p1 :stop)
+(def p2 (mk-intro-player {:loop? true :song-func intro1 :beat-length 4}))
 (p2 :play)
-(p2 :play intro1 4)
-(p2 :play intro2 4)
-(p2 :play intro3 4)
-(p2 :play intro4 4)
-(p2 :set-loop? false)
-
+(p2 :play intro1 8)
+(p2 :play intro2 8)
+(p2 :play intro3 8)
+(p2 :play intro4 8)
+(p2 :loop?)
+(p2 :stop)
 
 (require '[overtone.inst.synth :as sth])
 (sth/overpad (o/note :a3))
@@ -134,10 +144,16 @@
           (at (m (+ 3 b)) (sth/overpad (o/note n) :amp 1.1)))
         [:d3 :e3 :g3]
         [b (+ b 4) (+ b 8)])))
-(defn base-line [b]
-  (base-line-one b)
-  (at (m (+ b 12)) (#'base-line (+ b 12))))
-(base-line (m))
+(base-line-one (m))
+
+(def p3 (mk-intro-player {:loop? true :song-func base-line-one :beat-length 12}))
+(p3 :play)
+(p3 :play base-line-one 16)
+(p3 :stop)
+(def p4 (mk-intro-player {:loop? true :song-func base-line-one :beat-length 12}))
+(p4 :play)
+(p4 :stop)
+
 
 (require '[overtone.inst.drum :as d])
 
@@ -159,11 +175,11 @@
   (at (m (+ 5 b)) (d/clap :amp 0.8))
   (at (m (+ 5 b)) (d/snare :amp 0.8))
   (at (m (+ 7 b)) (d/quick-kick :amp 0.8)))
+(drums-pat (m))
+(def p4 (mk-intro-player {:loop? true :song-func drums-pat :beat-length 8}))
+(p4 :play)
+(p4 :stop)
 
-(defn drums [b]
-  (drums-pat b)
-  (at (m (+ b 8)) (#'drums (+ b 8))))
-(drums (m))
 
 (defn rec-guitar [reusable-long-buffer vol]
   (let [p (o/definst guitar-rec [vol 0.5]
